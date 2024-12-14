@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 
 import com.bergerkiller.bukkit.common.Task;
@@ -40,11 +41,13 @@ import com.bergerkiller.bukkit.mw.portal.PortalMode;
 import com.bergerkiller.bukkit.mw.utils.GeneratorStructuresParser;
 
 public class WorldConfig extends WorldConfigStore {
+    private final MyWorlds plugin;
     public final String worldname;
     public String alias;
     public boolean keepSpawnInMemory = true;
     public WorldMode worldmode = WorldMode.NORMAL;
-    public boolean loadOnStartup = true;
+    private WorldStartupLoadMode startupLoadMode = WorldStartupLoadMode.NOT_LOADED;
+    private WorldRegenerateOptions startupRegenerateOptions = null;
     private String chunkGeneratorName;
     public Difficulty difficulty = Difficulty.NORMAL;
     private Position spawnPoint; // If null, uses the World spawn
@@ -71,9 +74,23 @@ public class WorldConfig extends WorldConfigStore {
     public WorldInventory inventory;
     private File worldPlayerDataFolderOverride = null;
 
-    protected WorldConfig(String worldname) {
+    protected WorldConfig(MyWorlds plugin, String worldname) {
+        if (plugin == null) {
+            throw new IllegalArgumentException("Null MyWorlds plugin instance (out of order loading?)");
+        }
+
+        this.plugin = plugin;
         this.worldname = worldname;
         this.alias = worldname;
+    }
+
+    /**
+     * Gets the MyWorlds plugin instance that manages this WorldConfig
+     *
+     * @return MyWorlds main plugin instance
+     */
+    public MyWorlds getPlugin() {
+        return plugin;
     }
 
     /**
@@ -152,9 +169,9 @@ public class WorldConfig extends WorldConfigStore {
         }
 
         if (assignToMatchedInventory) {
-            this.inventory = WorldInventory.matchOrCreate(this.worldname);
+            this.inventory = WorldInventory.matchOrCreate(this.plugin, this.worldname);
         } else {
-            this.inventory = WorldInventory.create(this.worldname);
+            this.inventory = WorldInventory.create(this.plugin, this.worldname);
         }
     }
 
@@ -188,7 +205,7 @@ public class WorldConfig extends WorldConfigStore {
         // Some chunk generator plugins do not handle it when MyWorlds loads the world before
         if (generatorPluginName != null) {
             if (generatorPluginName.equalsIgnoreCase("iris")) {
-                this.loadOnStartup = false;
+                this.setStartupLoadMode(WorldStartupLoadMode.IGNORE);
                 MyWorlds.plugin.getLogger().log(Level.INFO, "Set auto-load for world '" + worldname +
                         "' to 'no' because it uses chunk generator plugin '" + generatorPluginName + "'!");
             }
@@ -240,7 +257,8 @@ public class WorldConfig extends WorldConfigStore {
         this.worldmode = config.worldmode;
         this.chunkGeneratorName = config.chunkGeneratorName;
         this.difficulty = config.difficulty;
-        this.loadOnStartup = config.loadOnStartup;
+        this.startupLoadMode = config.startupLoadMode.afterWorldLoadedChanged(isLoaded());
+        this.startupRegenerateOptions = config.startupRegenerateOptions == null ? null : config.startupRegenerateOptions.clone();
 
         // Copy spawn point. Swap world name if it referred to the original world
         this.spawnPoint = (config.spawnPoint == null) ? null : config.spawnPoint.clone();
@@ -279,7 +297,8 @@ public class WorldConfig extends WorldConfigStore {
         this.keepSpawnInMemory = node.get("keepSpawnLoaded", this.keepSpawnInMemory);
         this.worldmode = WorldMode.get(node.get("environment", this.worldmode.getName()));
         this.chunkGeneratorName = node.get("chunkGenerator", String.class, this.chunkGeneratorName);
-        this.loadOnStartup = !node.contains("loaded") || !"ignore".equalsIgnoreCase(node.get("loaded", String.class, ""));
+        this.startupLoadMode = WorldStartupLoadMode.readFromConfig(node);
+        this.startupRegenerateOptions = WorldRegenerateOptions.readFromConfig(node);
         if (LogicUtil.nullOrEmpty(this.chunkGeneratorName)) {
             this.chunkGeneratorName = null;
         }
@@ -289,7 +308,7 @@ public class WorldConfig extends WorldConfigStore {
 
         // Respawn point
         if (node.isNode("respawn")) {
-            this.respawnPoint = RespawnPoint.fromConfig(node.getNode("respawn"));
+            this.respawnPoint = RespawnPoint.fromConfig(plugin, node.getNode("respawn"));
         } else {
             this.respawnPoint = RespawnPoint.DEFAULT;
         }
@@ -412,11 +431,8 @@ public class WorldConfig extends WorldConfigStore {
         } else {
             node.set("alias", this.alias);
         }
-        if (this.loadOnStartup) {
-            node.set("loaded", w != null);
-        } else {
-            node.set("loaded", "ignore");
-        }
+        this.startupLoadMode.writeToConfig(node);
+        WorldRegenerateOptions.writeToConfig(node, this.startupRegenerateOptions);
         node.set("keepSpawnLoaded", this.keepSpawnInMemory);
         node.set("environment", this.worldmode.getName());
         node.set("chunkGenerator", LogicUtil.fixNull(this.getChunkGeneratorName(), ""));
@@ -538,6 +554,47 @@ public class WorldConfig extends WorldConfigStore {
     }
 
     /**
+     * Gets what kind of behavior MyWorlds should have on server restart/startup
+     * for this world.
+     *
+     * @return WorldStartupLoadMode
+     */
+    public WorldStartupLoadMode getStartupLoadMode() {
+        return this.startupLoadMode;
+    }
+
+    /**
+     * Sets what kind of behavior MyWorlds should have on server restart/startup
+     * for this world.
+     *
+     * @param mode WorldStartupLoadMode
+     */
+    public void setStartupLoadMode(WorldStartupLoadMode mode) {
+        this.startupLoadMode = mode;
+    }
+
+    /**
+     * Gets what to do at startup with this world. If set to non-null, it will reset
+     * the old data of the world based on these options.
+     *
+     * @return WorldRegenerateOptions
+     */
+    public WorldRegenerateOptions getStartupRegenerateOptions() {
+        return this.startupRegenerateOptions;
+    }
+
+    /**
+     * Sets what to do at startup with this world. If set to non-null, it will reset
+     * the old data of the world based on these options.
+     *
+     * @param options WorldRegenerateOptions, or null to disable regenerating the world
+     *                on startup
+     */
+    public void setStartupRegenerateOptions(WorldRegenerateOptions options) {
+        this.startupRegenerateOptions = options;
+    }
+
+    /**
      * Gets the Spawn location set for this world currently. If none is configured yet,
      * returns what is set by Bukkit.
      *
@@ -585,6 +642,25 @@ public class WorldConfig extends WorldConfigStore {
             World world = this.getWorld();
             if (world != null) {
                 setBukkitSpawn(world, location.toLocation(world));
+            }
+        }
+    }
+
+    /**
+     * Resets the MyWorlds-managed spawn locations if the new location block is not the same as the
+     * current spawn location. This is called when Bukkit fires the SpawnChangeEvent.
+     *
+     * @param location New world spawn location
+     */
+    public void resetSpawnLocationIfNotAt(Location location) {
+        if (this.spawnPoint != null) {
+            if (this.spawnPoint.getBlockX() != location.getBlockX() ||
+                this.spawnPoint.getBlockY() != location.getBlockY() ||
+                this.spawnPoint.getBlockZ() != location.getBlockZ()
+            ) {
+                this.spawnPoint = null;
+                plugin.getLogger().info("Spawn point of world '" + worldname + "' was changed outside of MyWorlds. Position reset to [" +
+                        location.getBlockX() + " " + location.getBlockY() + " " + location.getBlockZ() + "]");
             }
         }
     }
@@ -741,6 +817,9 @@ public class WorldConfig extends WorldConfigStore {
     }
 
     public void onWorldLoad(World world) {
+        // If startup mode was set to NOT_LOADED, change it to LOADED automatically
+        setStartupLoadMode(getStartupLoadMode().afterWorldLoadedChanged(true));
+
         // Update settings
         updateAll(world);
         // Detect default portals
@@ -755,7 +834,12 @@ public class WorldConfig extends WorldConfigStore {
         }
     }
 
-    public void onWorldUnload(World world) {
+    public void onWorldUnload(World world, boolean isPluginDisable) {
+        // If startup mode was set to LOADED, change it to NOT_LOADED automatically
+        if (!isPluginDisable) {
+            setStartupLoadMode(getStartupLoadMode().afterWorldLoadedChanged(false));
+        }
+
         // If the actual World spawnpoint changed, be sure to update accordingly
         // This is so that if another plugin changes the spawn point, MyWorlds updates too
         if (this.spawnPoint != null) {
@@ -1438,6 +1522,74 @@ public class WorldConfig extends WorldConfigStore {
         File worldFolder = this.getWorldFolder();
         WorldConfig.remove(this.worldname);
         return StreamUtil.deleteFile(worldFolder).isEmpty();
+    }
+
+    /**
+     * Deletes all the region data, points of interest, etc. of a world. But keeps the
+     * original world generator information intact, so that the world can be
+     * loaded again.
+     *
+     * @param options Configures what is reset and what is not
+     * @return True if resetting was successful
+     */
+    public boolean regenerateWorldData(WorldRegenerateOptions options) {
+        if (this.isLoaded()) {
+            plugin.getLogger().log(Level.WARNING, "Could not regenerate world " + worldname + ": world is loaded");
+            return false;
+        }
+
+        File regionFolder = this.getRegionFolder();
+        boolean fullySuccessful = true;
+        if (regionFolder.exists()) {
+            if (!StreamUtil.deleteFile(regionFolder).isEmpty()) {
+                fullySuccessful = false;
+            }
+        }
+        File parentFolder = regionFolder.getParentFile();
+        for (String otherFolderName : new String[] {"poi", "entities", "data"}) {
+            File otherFolder = new File(parentFolder, otherFolderName);
+            if (otherFolder.exists() && !StreamUtil.deleteFile(otherFolder).isEmpty()) {
+                fullySuccessful = false;
+            }
+        }
+        if (!fullySuccessful) {
+            plugin.getLogger().log(Level.WARNING, "Could not regenerate world " + worldname + " entirely: some files could not be deleted");
+        }
+
+        // Set initialized to false so that the next time this world is loaded, a spawn point is found
+        CommonTagCompound data = getData();
+        if (data == null) {
+            fullySuccessful = false;
+            plugin.getLogger().log(Level.WARNING, "Could not update level.dat of " +
+                    worldname + ": Could not load data");
+        } else {
+            if (options.isResetSeed()) {
+                long randomSeed = new Random().nextLong();
+                boolean changedSeed = false;
+                if (data.containsKey("RandomSeed")) {
+                    // 1.8 - 1.15.2
+                    data.putValue("RandomSeed", randomSeed);
+                    changedSeed = true;
+                }
+                CommonTagCompound worldGenSettings = data.get("WorldGenSettings", CommonTagCompound.class);
+                if (worldGenSettings != null && worldGenSettings.containsKey("seed")) {
+                    // 1.16+
+                    worldGenSettings.putValue("seed", randomSeed);
+                    changedSeed = true;
+                }
+                if (!changedSeed) {
+                    plugin.getLogger().log(Level.WARNING, "Could not regenerate level.dat seed of " +
+                            worldname + ": No seed setting found");
+                }
+            }
+
+            // Set initialized to 0 to force a new spawn point to be found
+            data.putValue("initialized", (byte) 0);
+
+            setData(data);
+        }
+
+        return fullySuccessful;
     }
 
     @Override

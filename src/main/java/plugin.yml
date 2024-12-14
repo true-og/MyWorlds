@@ -52,6 +52,7 @@ commands:
             /world rememberlastpos - Toggles last-position memory on/off
             /world evacuate - Evacuate all players of a world
             /world delete - Delete a world permanently
+            /world regenerate - Resets world data and regenerates
             /world copy - Copy a world to a new name
             /world repair - Repair a world
             /world advancements - Enable/disable awarding advancements on a world
@@ -208,6 +209,9 @@ commands:
     world delete:
         description: Deletes an unloaded world
         usage: /world delete [world]
+    world regenerate:
+        description: Regenerates world data
+        usage: /world regenerate [world] [extra options...]
     world copy:
         description: Copies a world
         usage: /world copy [world_from] [world_to]
@@ -231,6 +235,14 @@ commands:
         usage: |
             /world setendportal [portal/world]
             /world setendportal    - Reset to default
+    world setautoload:
+        description: Sets if the world is automatically loaded on startup or not
+        usage:
+            /world setautoload [yes/no] [world]
+    world setautoregenerate:
+        description: Sets if world chunk data is reset on startup, regenerating it
+        usage:
+            /world setautoregenerate [world] [enabled/disabled] [extra options...]
     world showcredits:
         description: Enables showing the end-game credits a second time
         usage: |

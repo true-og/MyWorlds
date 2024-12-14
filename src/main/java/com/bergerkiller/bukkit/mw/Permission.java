@@ -28,6 +28,7 @@ public class Permission extends PermissionEnum {
     public static final Permission COMMAND_SAVE = new Permission("world.save", PermissionDefault.OP, "Sets if the player can save worlds");
     public static final Permission COMMAND_SETSAVING = new Permission("world.setsaving", PermissionDefault.OP, "Sets if the player can toggle world auto-saving on or off");
     public static final Permission COMMAND_DELETE = new Permission("world.delete", PermissionDefault.OP, "Sets if the player can permanently delete worlds");
+    public static final Permission COMMAND_REGENERATE = new Permission("world.regenerate", PermissionDefault.OP, "Sets if the player can permanently reset worlds (regenerate entirely)");
     public static final Permission COMMAND_COPY = new Permission("world.copy", PermissionDefault.OP, "Sets if the player can clone worlds");
     public static final Permission COMMAND_DIFFICULTY = new Permission("world.difficulty", PermissionDefault.OP, "Sets if the player can change the difficulty setting of worlds");
     public static final Permission COMMAND_TOGGLEPVP = new Permission("world.togglepvp", PermissionDefault.OP, "Sets if the player can change the PvP setting of worlds");
@@ -50,6 +51,7 @@ public class Permission extends PermissionEnum {
     public static final Permission COMMAND_PLAYERLIMIT = new Permission("world.playerlimit", PermissionDefault.OP, "Sets if players can modify the player count limits set for a world");
     public static final Permission COMMAND_SETPORTALOPTION = new Permission("world.setportaloption", PermissionDefault.OP, "Sets if players can modify portal sign options, such as whether mobs can use it");
     public static final Permission COMMAND_AUTOLOAD = new Permission("world.autoload", PermissionDefault.OP, "Sets if the player can set whether a world is loaded on startup or not");
+    public static final Permission COMMAND_AUTOREGENERATE = new Permission("world.autoregenerate", PermissionDefault.OP, "Sets if the player can set whether a world is regenerated on startup or not");
     public static final Permission COMMAND_TPP = new Permission("tpp", PermissionDefault.OP, "Sets if the player can teleport to any worlds or portals, ignoring the per-portal/world permissions");
     public static final Permission GENERAL_TELEPORT = new Permission("world.teleport", PermissionDefault.OP, "Sets the worlds a player can teleport to using /tpp and /world spawn", 1);
     public static final Permission GENERAL_ENTER = new Permission("world.enter", PermissionDefault.OP, "Sets if the player can enter a certain world through portals", 1);
@@ -67,6 +69,7 @@ public class Permission extends PermissionEnum {
     public static final Permission PORTAL_USE = new Permission("portal.use", PermissionDefault.TRUE, "Sets if the player can use portals", 1);
     public static final Permission PORTAL_TELEPORT = new Permission("portal.teleport", PermissionDefault.OP, "Sets the portals a player can teleport to using /tpp", 1);
     public static final Permission SUGGESTIONS = new Permission("command.suggestions", PermissionDefault.TRUE, "Sets whether the player can see myworlds command suggestions");
+    public static final Permission DEBUGGING = new Permission("command.debug", PermissionDefault.OP, "Sets whether the player can toggle debugging of Bukkit events on/off");
 
     private Permission(final String name, final PermissionDefault def, final String desc) {
         super("myworlds." + name, def, desc, 0);
