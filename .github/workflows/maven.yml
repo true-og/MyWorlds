@@ -1,5 +1,4 @@
 name: Java CI with Maven
-
 on:
   push:
     branches: [ "master" ]
@@ -7,11 +6,9 @@ on:
       - 'v*' # This will trigger the workflow on tag pushes that start with 'v'
   pull_request:
     branches: [ "master" ]
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
     
@@ -22,30 +19,8 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    # Create a custom settings.xml file to skip the unreachable repository
-    - name: Create Maven Settings
-      run: |
-        mkdir -p ~/.m2
-        cat > ~/.m2/settings.xml << EOF
-        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                                     http://maven.apache.org/xsd/settings-1.0.0.xsd">
-          <mirrors>
-            <mirror>
-              <id>maven-default-http-blocker</id>
-              <mirrorOf>external:http:*</mirrorOf>
-              <name>Pseudo repository to mirror external repositories initially using HTTP.</name>
-              <url>http://0.0.0.0/</url>
-              <blocked>true</blocked>
-            </mirror>
-          </mirrors>
-          <offline>true</offline>
-        </settings>
-        EOF
-    
     - name: Build with Maven
-      run: mvn -B package --file pom.xml -Dmaven.test.skip=true -DskipTests
+      run: mvn -B package --file pom.xml -Dmaven.test.skip=true
       
     # The following steps only run when a tag is pushed
     - name: Check if this is a tag push
