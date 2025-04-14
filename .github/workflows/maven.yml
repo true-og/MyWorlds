@@ -22,24 +22,30 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    # Fix dependencies properly using XMLStarlet
-    - name: Install XMLStarlet
-      run: sudo apt-get install -y xmlstarlet
-    
-    - name: Fix POM dependencies
+    # Create a custom settings.xml file to skip the unreachable repository
+    - name: Create Maven Settings
       run: |
-        # Create a backup
-        cp pom.xml pom.xml.bak
-        
-        # Remove the MythicDungeons dependency using XMLStarlet
-        xmlstarlet ed -L \
-          -d "//dependency[groupId='net.playavalon']" \
-          pom.xml
-        
-        echo "Modified pom.xml to remove problematic dependencies"
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml << EOF
+        <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                     http://maven.apache.org/xsd/settings-1.0.0.xsd">
+          <mirrors>
+            <mirror>
+              <id>maven-default-http-blocker</id>
+              <mirrorOf>external:http:*</mirrorOf>
+              <name>Pseudo repository to mirror external repositories initially using HTTP.</name>
+              <url>http://0.0.0.0/</url>
+              <blocked>true</blocked>
+            </mirror>
+          </mirrors>
+          <offline>true</offline>
+        </settings>
+        EOF
     
     - name: Build with Maven
-      run: mvn -B package -Dmaven.test.skip=true --file pom.xml
+      run: mvn -B package --file pom.xml -Dmaven.test.skip=true -DskipTests
       
     # The following steps only run when a tag is pushed
     - name: Check if this is a tag push
@@ -55,31 +61,12 @@ jobs:
         echo "Files in target directory:"
         find target -type f -name "*.jar" | sort
     
-    - name: Find JAR file
-      if: env.IS_TAG == 'true'
-      id: find-jar
-      run: |
-        # Look for the shaded JAR with 'all' classifier
-        JAR_PATH=$(find target -name "MyWorlds-*-all.jar" -type f | head -n 1)
-        if [[ -z "$JAR_PATH" ]]; then
-          # Fall back to any JAR if the specific one isn't found
-          JAR_PATH=$(find target -name "MyWorlds-*.jar" -type f | grep -v 'original' | head -n 1)
-        fi
-        
-        if [[ -n "$JAR_PATH" ]]; then
-          echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
-          echo "Found JAR at: $JAR_PATH"
-        else
-          echo "No JAR file found in target directory!"
-          exit 1
-        fi
-    
     - name: Create GitHub Release
-      if: env.IS_TAG == 'true' && env.JAR_PATH != ''
+      if: env.IS_TAG == 'true'
       uses: softprops/action-gh-release@v1
       with:
         name: MyWorlds Version ${{ env.VERSION }}
-        files: ${{ env.JAR_PATH }}
+        files: target/MyWorlds-*-all.jar
         draft: false
         prerelease: false
       env:
