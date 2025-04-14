@@ -35,19 +35,13 @@ jobs:
       run: |
         echo "Files in target directory:"
         find target -type f -name "*.jar" | sort
-        echo "Files that will be included in release:"
-        find target -type f -name "MyWorlds*.jar" | sort
     
     - name: Create GitHub Release
       if: env.IS_TAG == 'true'
       uses: softprops/action-gh-release@v1
       with:
         name: MyWorlds Version ${{ env.VERSION }}
-        files: |
-          target/MyWorlds*.jar
-          !target/*-sources.jar
-          !target/*-javadoc.jar
-          !target/*-unshaded.jar
+        files: target/MyWorlds-*-NO-CI.jar
         draft: false
         prerelease: false
       env:
