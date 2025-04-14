@@ -22,15 +22,21 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    # More aggressive fix for dependency issues
+    # Fix dependencies properly using XMLStarlet
+    - name: Install XMLStarlet
+      run: sudo apt-get install -y xmlstarlet
+    
     - name: Fix POM dependencies
       run: |
-        # Completely remove the MythicDungeons dependency
-        sed -i '/<groupId>net.playavalon<\/groupId>/,/<\/dependency>/d' pom.xml
-        echo "Removed MythicDungeons dependency from pom.xml"
+        # Create a backup
+        cp pom.xml pom.xml.bak
         
-        # Build with skipTests to avoid further issues
-        export MAVEN_OPTS="-Dmaven.test.skip=true"
+        # Remove the MythicDungeons dependency using XMLStarlet
+        xmlstarlet ed -L \
+          -d "//dependency[groupId='net.playavalon']" \
+          pom.xml
+        
+        echo "Modified pom.xml to remove problematic dependencies"
     
     - name: Build with Maven
       run: mvn -B package -Dmaven.test.skip=true --file pom.xml
@@ -44,18 +50,29 @@ jobs:
           echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
         fi
     
+    - name: List files in target directory
+      run: |
+        echo "Files in target directory:"
+        find target -type f -name "*.jar" | sort
+    
     - name: Find JAR file
       if: env.IS_TAG == 'true'
       id: find-jar
       run: |
-        # Use find to locate the JAR file with the 'all' classifier
+        # Look for the shaded JAR with 'all' classifier
         JAR_PATH=$(find target -name "MyWorlds-*-all.jar" -type f | head -n 1)
         if [[ -z "$JAR_PATH" ]]; then
           # Fall back to any JAR if the specific one isn't found
-          JAR_PATH=$(find target -name "MyWorlds-*.jar" -type f | head -n 1)
+          JAR_PATH=$(find target -name "MyWorlds-*.jar" -type f | grep -v 'original' | head -n 1)
         fi
-        echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
-        echo "Found JAR at: $JAR_PATH"
+        
+        if [[ -n "$JAR_PATH" ]]; then
+          echo "JAR_PATH=$JAR_PATH" >> $GITHUB_ENV
+          echo "Found JAR at: $JAR_PATH"
+        else
+          echo "No JAR file found in target directory!"
+          exit 1
+        fi
     
     - name: Create GitHub Release
       if: env.IS_TAG == 'true' && env.JAR_PATH != ''
