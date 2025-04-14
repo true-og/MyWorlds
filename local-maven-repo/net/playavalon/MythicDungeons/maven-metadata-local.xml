@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>net.playavalon</groupId>
+  <artifactId>MythicDungeons</artifactId>
+  <versioning>
+    <versions>
+      <version>1.3.0-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20250414211240</lastUpdated>
+  </versioning>
+</metadata>
