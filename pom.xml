@@ -96,6 +96,20 @@
             <artifactId>MythicDungeons</artifactId>
             <version>1.3.0-SNAPSHOT</version>
             <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>net.playavalon</groupId>
+                    <artifactId>AvnGUI</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Add AvnGUI separately from local repo -->
+        <dependency>
+            <groupId>net.playavalon</groupId>
+            <artifactId>AvnGUI</artifactId>
+            <version>0.1.26</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
