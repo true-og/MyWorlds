@@ -28,6 +28,7 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EntityEquipment;
 import org.bukkit.inventory.EquipmentSlot;
 
 import com.bergerkiller.bukkit.common.Common;
@@ -538,7 +539,6 @@ public class MWPlayerDataController extends PlayerDataController {
 
         // Clear attributes
         EntityLivingHandle livingHandle = EntityLivingHandle.fromBukkit(human);
-        NBTUtil.resetAttributes(human);
         livingHandle.resetAttributes();
 
         // Clear inventory
@@ -627,6 +627,7 @@ public class MWPlayerDataController extends PlayerDataController {
 
                 // Load the data
                 NBTUtil.loadInventory(player.getInventory(), playerData.createList(VANILLA_INVENTORY_TAG));
+                NBTUtil.loadEquipment(player.getEquipment(), playerData.get("equipment", CommonTagCompound.class));
                 player.getInventory().setHeldItemSlot(playerData.getValue("SelectedItemSlot", 0));
                 playerHandle.setExp(playerData.getValue("XpP", 0.0f));
                 playerHandle.setExpLevel(playerData.getValue("XpLevel", 0));
@@ -673,10 +674,10 @@ public class MWPlayerDataController extends PlayerDataController {
 
                 // Initialize spawn point
                 PlayerRespawnPoint respawnPoint = PlayerRespawnPoint.fromNBT(playerData);
-                if (MWPlayerDataController.isValidRespawnPoint(player.getWorld(), respawnPoint)) {
-                    respawnPoint.applyToPlayer(player);
+                if (!MWPlayerDataController.isValidRespawnPoint(player.getWorld(), respawnPoint)) {
+                    respawnPoint = PlayerRespawnPoint.NONE;
                 }
-                playerHandle.setSpawnForced(playerData.getValue("SpawnForced", false));
+                respawnPoint.applyToPlayer(player);
 
                 NBTUtil.loadFoodMetaData(playerHandle.getFoodDataRaw(), playerData);
                 NBTUtil.loadInventory(player.getEnderChest(), playerData.createList(VANILLA_ENDER_CHEST_TAG));
@@ -1327,6 +1328,7 @@ public class MWPlayerDataController extends PlayerDataController {
             playerData.put(VANILLA_INVENTORY_TAG, emptyInventory);
         }
 
+        playerData.remove("equipment");
         playerData.remove("attributes");
         playerData.remove("Attributes");
         playerData.remove("SelectedItemSlot");
