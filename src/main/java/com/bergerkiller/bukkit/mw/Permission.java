@@ -44,6 +44,7 @@ public class Permission extends PermissionEnum {
     public static final Permission COMMAND_FORMING = new Permission("world.forming", PermissionDefault.OP, "Sets if the player can toggle snow and ice forming on or off");
     public static final Permission COMMAND_RELOADWE = new Permission("world.reloadwe", PermissionDefault.OP, "Sets if players can toggle if worlds reload when empty");
     public static final Permission COMMAND_HUNGER = new Permission("world.hunger", PermissionDefault.OP, "Sets if players can toggle hunger on or off for worlds");
+    public static final Permission COMMAND_HEALTH_REGEN = new Permission("world.healthregen", PermissionDefault.OP, "Sets if players can toggle natural health regeneration on or off for worlds");
     public static final Permission COMMAND_ENABLECREDITS = new Permission("world.enablecredits", PermissionDefault.TRUE, "Enables a player to view the end-game credits a second time, after already completing the end before");
     public static final Permission COMMAND_ADVANCEMENTS = new Permission("world.advancements", PermissionDefault.OP, "Sets if players can toggle advancements on/off for a world");
     public static final Permission COMMAND_ALIAS = new Permission("world.alias", PermissionDefault.OP, "Sets if the player can change the (PlaceholderAPI) world name alias");
@@ -61,6 +62,7 @@ public class Permission extends PermissionEnum {
     public static final Permission GENERAL_IGNOREGM = new Permission("world.ignoregamemode", PermissionDefault.FALSE, "Sets if the player game mode is not changed by the world game mode");
     public static final Permission GENERAL_USE = new Permission("world.use", PermissionDefault.OP, "Sets if the player can interact with blocks in a certain world", 1);
     public static final Permission GENERAL_KEEPINV = new Permission("world.keepinventory", PermissionDefault.FALSE, "Sets if the player keeps his inventory while switching worlds");
+    public static final Permission GENERAL_IGNORE_FORCE_JOIN = new Permission("world.ignoreforcejoin", PermissionDefault.FALSE, "Whether the force-join-main-world setting in config.yml is ignored for the player");
     public static final Permission GENERAL_KEEPLASTPOS = new Permission("world.keeplastpos", PermissionDefault.FALSE, "Sets if the player overrides the world rememberlastpos setting to always permit it");
     public static final Permission GENERAL_LINKNETHER = new Permission("world.linknether", PermissionDefault.TRUE, "Sets if the player can spawn nether portals on other worlds when a nether link is enabled for a world");
     public static final Permission GENERAL_BYPASSPLAYERLIMITS = new Permission("world.bypassplayerlimit", PermissionDefault.FALSE, "Sets if the player bypasses the per-world player limit (if set)");
