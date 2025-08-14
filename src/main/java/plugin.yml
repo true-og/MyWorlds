@@ -45,6 +45,8 @@ commands:
             /world allowspawn - Allow mobs to spawn
             /world denyspawn - Deny mobs from spawning
             /world inventory - Manage world inventories
+            /world clearinventory - Clear player inventory/enderchest
+            /world clearenderchest - Clear player enderchest
             /world saving - Toggle world saving on/off
             /world spawnloaded - Toggle spawn loaded on/off
             /world forcedrespawn - Toggle forced respawn on/off
@@ -187,6 +189,25 @@ commands:
             /world inventory disable [world]
             /world inventory split [world...]
             /world inventory merge [world1] [world...]
+    world clearinventory:
+        description: Clears a player's inventory and/or enderchest in a specific world
+        aliases: [world clearinv]
+        usage: |
+            /world clearinventory <player> <world> [type]
+            Types: inventory, enderchest, both (default)
+            Examples:
+              /world clearinv Steve world - Clears both inventory and enderchest
+              /world clearinv Steve world inventory - Clears only inventory
+              /world clearinv Steve world enderchest - Clears only enderchest
+              /world clearinv Steve world both - Explicitly clears both
+    world clearenderchest:
+        description: Clears a player's enderchest in a specific world
+        aliases: [world clearender, world clearec]
+        usage: |
+            /world clearenderchest <player> <world>
+            Examples:
+              /world clearenderchest Steve world
+              /world clearec Steve world_nether
     world saving:
         description: Turns world saving on or off
         usage: |
@@ -251,10 +272,120 @@ commands:
         description: Enables or disables player getting advancements on the world
         usage: |
             /world advancements [enable/disable/silent] - Enable/disable/no chat
-    world clearinventory:
-        description: Clears a player's inventory in a specific world
-        aliases: [world clearinv]
-        usage: /world clearinventory <player> <world>
     tpp:
         description: Cross-world teleportation commands
         usage: /tpp [Portalname/Worldname] - Teleport to a Portal or World
+
+permissions:
+    world.*:
+        description: Full access to all MyWorlds commands
+        default: op
+        children:
+            world.list: true
+            world.info: true
+            world.config: true
+            world.create: true
+            world.load: true
+            world.unload: true
+            world.save: true
+            world.delete: true
+            world.spawn: true
+            world.setspawn: true
+            world.teleport: true
+            world.portals: true
+            world.inventory: true
+            world.clearinventory: true
+            world.clearenderchest: true
+            world.time: true
+            world.weather: true
+            world.gamemode: true
+            world.difficulty: true
+            world.pvp: true
+            world.allowspawn: true
+            world.denyspawn: true
+            world.evacuate: true
+            world.regenerate: true
+            world.copy: true
+            world.repair: true
+            world.advancements: true
+    world.clearinventory:
+        description: Allows clearing a player's inventory in a specific world
+        default: op
+    world.clearenderchest:
+        description: Allows clearing a player's enderchest in a specific world
+        default: op
+    world.list:
+        description: Allows listing all worlds
+        default: op
+    world.info:
+        description: Allows viewing world information
+        default: op
+    world.config:
+        description: Allows managing world configuration
+        default: op
+    world.create:
+        description: Allows creating new worlds
+        default: op
+    world.load:
+        description: Allows loading worlds
+        default: op
+    world.unload:
+        description: Allows unloading worlds
+        default: op
+    world.save:
+        description: Allows saving worlds
+        default: op
+    world.delete:
+        description: Allows deleting worlds
+        default: op
+    world.spawn:
+        description: Allows teleporting to world spawns
+        default: op
+    world.setspawn:
+        description: Allows setting world spawn points
+        default: op
+    world.teleport:
+        description: Allows cross-world teleportation
+        default: op
+    world.portals:
+        description: Allows managing world portals
+        default: op
+    world.inventory:
+        description: Allows managing world inventories
+        default: op
+    world.time:
+        description: Allows setting world time
+        default: op
+    world.weather:
+        description: Allows setting world weather
+        default: op
+    world.gamemode:
+        description: Allows setting world gamemode
+        default: op
+    world.difficulty:
+        description: Allows setting world difficulty
+        default: op
+    world.pvp:
+        description: Allows toggling world PVP
+        default: op
+    world.allowspawn:
+        description: Allows configuring mob spawning
+        default: op
+    world.denyspawn:
+        description: Allows denying mob spawning
+        default: op
+    world.evacuate:
+        description: Allows evacuating worlds
+        default: op
+    world.regenerate:
+        description: Allows regenerating worlds
+        default: op
+    world.copy:
+        description: Allows copying worlds
+        default: op
+    world.repair:
+        description: Allows repairing worlds
+        default: op
+    world.advancements:
+        description: Allows managing world advancements
+        default: op

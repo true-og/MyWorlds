@@ -21,7 +21,11 @@ public class WorldCommandRegistry extends CommandRegistry {
         register(WorldInfo::new, "info", "i");
         register(WorldPortals::new, "portals", "portal");
         register(WorldGivePortal::new, "giveportal");
+        
+        // Inventory management commands
         register(WorldClearInventory::new, "clearinventory", "clearinv");
+        register(WorldClearEnderChest::new, "clearenderchest", "clearender", "clearec");
+        
         register(WorldLoad::new, "load");
         register(WorldUnload::new, "unload");
         register(WorldCreate::new, "create");
@@ -71,5 +75,4 @@ public class WorldCommandRegistry extends CommandRegistry {
         register(WorldSetAutoRegenerate::new, "setautoregenerate");
         register(WorldDebug::new, "debug");
     }
-
 }
