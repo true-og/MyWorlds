@@ -1,35 +1,58 @@
-# MyWorlds
+# MyWorlds 🌍
 
-[Spigot Resource Page](https://www.spigotmc.org/resources/myworlds.39594/) | [Dev Builds](https://ci.mg-dev.eu/job/MyWorlds/)
+[![Spigot Resource](https://img.shields.io/badge/Spigot-MyWorlds-orange)](https://www.spigotmc.org/resources/myworlds.39594/)
+[![Dev Builds](https://img.shields.io/badge/Dev%20Builds-CI-blue)](https://ci.mg-dev.eu/job/MyWorlds/)
+[![GitHub Release](https://img.shields.io/github/v/release/regix1/MyWorlds)](https://github.com/regix1/MyWorlds/releases)
 
-World Management plugin for Bukkit.
+> Advanced World Management plugin for Bukkit/Spigot servers
 
-## Fork Modifications
+## ✨ Fork Features
 
-This fork adds the following features to the original MyWorlds plugin:
+This enhanced fork adds powerful inventory management capabilities to the original MyWorlds plugin.
 
-### New Commands
+### 🎯 Enhanced Inventory Management
 
-- `/world clearinventory <player> <world>` (alias: `/world clearinv`) - Clears a player's inventory data for a specific world
-    - Players can be specified by name or UUID
-    - Works for both online and offline players
-    - Clears both normal inventory and ender chest items
+#### **New Commands**
 
-### New Permissions
+| Command | Description | Aliases |
+|---------|-------------|---------|
+| `/world clearinventory <player> <world> [type]` | Clear player inventories with granular control | `/world clearinv` |
+| `/world clearenderchest <player> <world>` | Quick enderchest clearing | `/world clearender`, `/world clearec` |
 
-- `world.clearinventory` - Allows clearing a player's inventory in a specific world (Default: OP)
+**Clear Types:**
+- `inventory` - Clears only the regular inventory and XP data
+- `enderchest` - Clears only the enderchest
+- `both` - Clears everything (default)
 
-### Technical Improvements
+#### **Features**
+- ✅ Works with **online and offline players**
+- ✅ Support for **UUID or player name**
+- ✅ **Granular control** over what gets cleared
+- ✅ **Smart autocomplete** for all parameters
+- ✅ **XP data management** when clearing inventories
+- ✅ **Full backward compatibility** with existing scripts
 
-- Fixed dependency issues with MythicDungeons and AvnGUI
-- Added local repository support for more reliable builds
-- Improved GitHub Actions workflow for automated releases
+### 🔐 Permissions
 
-## Installation
+| Permission | Description | Default |
+|------------|-------------|---------|
+| `world.clearinventory` | Allows clearing player inventories | OP |
+| `world.clearenderchest` | Allows clearing player enderchests | OP |
 
-Download the latest release JAR from the [Releases](https://github.com/regix1/MyWorlds/releases) page and place it in your server's plugins folder.
+### 🔧 Technical Improvements
 
-## Building from Source
+- **Fixed** dependency issues with MythicDungeons and AvnGUI
+- **Added** local repository support for more reliable builds
+- **Improved** GitHub Actions workflow for automated releases
+- **Enhanced** error handling and logging
+
+## 📦 Installation
+
+1. Download the latest release JAR from the [Releases](https://github.com/regix1/MyWorlds/releases) page
+2. Place it in your server's `plugins` folder
+3. Restart your server
+
+## 🛠️ Building from Source
 
 ```bash
 git clone https://github.com/regix1/MyWorlds.git
@@ -39,19 +62,56 @@ mvn clean package
 
 The built plugin will be in the `target` directory.
 
-## Usage Examples
+## 📚 Usage Examples
 
-Clear a player's inventory in a specific world:
-
+### Clear Everything (Default)
 ```
-/world clearinventory PlayerName worldname
+/world clearinventory Steve world
 ```
 
-## Dependencies
+### Clear Only Inventory
+```
+/world clearinv Steve world_nether inventory
+```
 
-* BKCommonLib (included)
-* Optional: Multiverse-Core, PlaceholderAPI, MythicDungeons
+### Clear Only EnderChest
+```
+/world clearenderchest Steve world_the_end
+```
+or
+```
+/world clearinv Steve world enderchest
+```
 
-## License
+### Using UUID
+```
+/world clearinv 069a79f4-44e9-4726-a5be-fca90e38aaf5 world
+```
+
+## 🔌 Dependencies
+
+| Dependency | Required | Description |
+|------------|----------|-------------|
+| **BKCommonLib** | ✅ Yes | Core library (included) |
+| Multiverse-Core | ❌ Optional | World management integration |
+| PlaceholderAPI | ❌ Optional | Placeholder support |
+| MythicDungeons | ❌ Optional | Dungeon instance support |
+
+## 📄 License
 
 This plugin maintains the same license as the original MyWorlds plugin.
+
+## 🤝 Contributing
+
+Feel free to submit issues and enhancement requests!
+
+## 🙏 Credits
+
+- Original MyWorlds plugin by [bergerkiller](https://github.com/bergerhealer/MyWorlds)
+- Fork enhancements by [regix1](https://github.com/regix1)
+
+---
+
+<div align="center">
+  
+**[Download Latest Release](https://github.com/regix1/MyWorlds/releases/latest)** | **[Report Issue](https://github.com/regix1/MyWorlds/issues)**
