@@ -1,4 +1,4 @@
-name: My_Worlds
+name: MyWorlds
 version: ${project.version}
 build: ${project.build.number}
 api-version: 1.13
@@ -6,7 +6,7 @@ authors: [KamikazePlatypus, mg_1999, Friwi, bergerkiller, lenis0012, timstans, b
 softdepend: [BKCommonLib, Multiverse-Core, SuperiorSkyblock2, PlaceholderAPI]
 loadbefore: [dynmap, Citizens, MobArena, RegionForSale, CreativeGates, HeroStronghold]
 classdepend: [BetterPortals]
-metrics: true
+metrics: false
 
 main: com.bergerkiller.bukkit.mw.Preloader
 preloader:
