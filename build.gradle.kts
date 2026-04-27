@@ -50,7 +50,7 @@ repositories {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:$mcApiVersion")
-    compileOnly("com.bergerkiller.bukkit:BKCommonLib:$bkCommonLibVersion")
+    compileOnly(files("libs/BKCommonLib/BKCommonLib-$bkCommonLibVersion.jar"))
 
     compileOnly("com.onarandombox.multiversecore:Multiverse-Core:4.2.0") {
         exclude(group = "org.bukkit", module = "craftbukkit")
@@ -107,6 +107,14 @@ tasks.shadowJar {
 
     dependencies {
         include(dependency("com.bergerkiller.bukkit.preloader:PluginPreloader"))
+    }
+
+    from("LICENSE") {
+        rename { "LICENSE" }
+    }
+    from("libs/BKCommonLib/LICENSE") {
+        into("META-INF/licenses")
+        rename { "LICENSE-BKCommonLib" }
     }
 
     exclude("META-INF/*.MF")
