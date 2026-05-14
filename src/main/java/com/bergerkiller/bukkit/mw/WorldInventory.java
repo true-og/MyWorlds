@@ -43,6 +43,10 @@ public class WorldInventory {
         }
 
         // Load the new configuration. Replace found settings with already-generated ones.
+        // Extract bundled default inventories.yml on first run
+        if (!new java.io.File(MyWorlds.plugin.getDataFolder(), "inventories.yml").exists()) {
+            MyWorlds.plugin.saveResource("inventories.yml", false);
+        }
         FileConfiguration config = new FileConfiguration(MyWorlds.plugin, "inventories.yml");
         config.load();
         for (ConfigurationNode node : config.getNodes()) {

@@ -30,7 +30,7 @@ sourceSets {
     main {
         resources {
             srcDir("src/main/java")
-            include("plugin.yml")
+            include("plugin.yml", "config.yml", "defaultproperties.yml", "inventories.yml")
         }
     }
 }

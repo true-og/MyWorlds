@@ -188,6 +188,10 @@ public class MyWorlds extends PluginBase {
         advancementManager.enable();
 
         // Continue loading the configuration(s)
+        // Extract bundled default config.yml on first run
+        if (!new java.io.File(getDataFolder(), "config.yml").exists()) {
+            saveResource("config.yml", false);
+        }
         FileConfiguration config = new FileConfiguration(this);
         config.load();
 

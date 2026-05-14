@@ -149,6 +149,10 @@ public class WorldConfigStore {
         initializing = true;
         try {
             // Default configuration
+            // Extract bundled default defaultproperties.yml on first run
+            if (!new java.io.File(MyWorlds.plugin.getDataFolder(), "defaultproperties.yml").exists()) {
+                MyWorlds.plugin.saveResource("defaultproperties.yml", false);
+            }
             defaultProperties = new FileConfiguration(MyWorlds.plugin, "defaultproperties.yml");
             defaultProperties.setHeader("This file contains the default world properties applied when loading or creating completely new worlds");
             defaultProperties.addHeader("All the nodes found in the worlds.yml can be set here");
