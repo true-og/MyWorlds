@@ -4,8 +4,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
@@ -38,6 +41,9 @@ import com.bergerkiller.bukkit.mw.portal.PortalMode;
 import com.bergerkiller.bukkit.mw.utils.GeneratorStructuresParser;
 
 public class WorldConfig extends WorldConfigStore {
+    private static final Set<String> MOB_SPAWN_DEFAULT_ALLOW_WORLDS = new HashSet<String>(
+            Arrays.asList("world", "world_nether", "world_the_end"));
+
     public final String worldname;
     public String alias;
     public boolean keepSpawnInMemory = true;
@@ -293,6 +299,14 @@ public class WorldConfig extends WorldConfigStore {
                 }
             }
         }
+        // One-shot migration: deny mob spawning by default on non-main worlds.
+        // Sentinel prevents re-application after admin overrides via /world allowspawn.
+        if (this.worldname != null
+                && !MOB_SPAWN_DEFAULT_ALLOW_WORLDS.contains(this.worldname)
+                && !node.get("spawnDefaultsApplied", false)) {
+            this.spawnControl.setAnimals(true);
+            this.spawnControl.setMonsters(true);
+        }
         long time = (long) node.get("lockedtime", Integer.MIN_VALUE);
         if (time != Integer.MIN_VALUE) {
             this.timeControl.setTime(time);
@@ -321,6 +335,7 @@ public class WorldConfig extends WorldConfigStore {
         node.remove("spawn");
         node.remove("loaded");
         node.remove("rejoinGroup");
+        node.remove("spawnDefaultsApplied");
     }
 
     public void save(ConfigurationNode node) {
@@ -364,6 +379,7 @@ public class WorldConfig extends WorldConfigStore {
         PortalDestination.toConfig(this.defaultEndPortal, node, "defaultEndPortal");
         node.set("operators", this.OPlist);
         node.set("deniedCreatures", creatures);
+        node.set("spawnDefaultsApplied", true);
         node.set("hunger", this.allowHunger);
         node.set("formIce", this.formIce);
         node.set("formSnow", this.formSnow);
