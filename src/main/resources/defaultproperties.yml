@@ -7,10 +7,10 @@ rememberlastplayerpos: false
 pvp: true
 operators: []
 deniedCreatures: []
-hunger: false
+hunger: true
 formIce: false
 formSnow: false
-difficulty: PEACEFUL
+difficulty: HARD
 reloadWhenEmpty: false
 bedRespawnEnabled: false
 advancementsEnabled: false
