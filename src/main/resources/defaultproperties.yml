@@ -13,8 +13,8 @@ formSnow: false
 difficulty: HARD
 reloadWhenEmpty: false
 bedRespawnEnabled: false
-advancementsEnabled: false
-advancementsSilent: true
+advancementsEnabled: true
+advancementsSilent: false
 playerLimit: -1
 
 # All settings applied to worlds with the normal environment
