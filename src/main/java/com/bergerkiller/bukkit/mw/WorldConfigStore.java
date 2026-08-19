@@ -173,6 +173,10 @@ public class WorldConfigStore {
             }
 
             // Worlds configuration
+            // Extract bundled default worlds.yml on first run
+            if (!new java.io.File(MyWorlds.plugin.getDataFolder(), "worlds.yml").exists()) {
+                MyWorlds.plugin.saveResource("worlds.yml", false);
+            }
             worldConfigs.clear();
             FileConfiguration config = new FileConfiguration(MyWorlds.plugin, "worlds.yml");
             config.load();

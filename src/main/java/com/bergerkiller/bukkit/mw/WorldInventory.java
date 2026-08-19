@@ -1,12 +1,19 @@
 package com.bergerkiller.bukkit.mw;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Level;
 
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.common.config.ConfigurationNode;
@@ -17,6 +24,8 @@ import com.bergerkiller.bukkit.common.wrappers.PlayerRespawnPoint;
 public class WorldInventory {
     private static final Set<WorldInventory> inventories = new HashSet<WorldInventory>();
     private static boolean inventoriesLoaded = false;
+    private static boolean enforcingCanonical = false;
+    private static List<CanonicalGroup> canonicalGroups = null;
     private static int counter = 0;
     private final Set<String> worlds = new HashSet<String>();
     private String worldname;
@@ -31,8 +40,6 @@ public class WorldInventory {
     }
 
     public static void load() {
-        inventoriesLoaded = true;
-
         // Check whether there are any configured entries that would result in saving
         boolean hadExistingInventoriesThatRequiredSaving = false;
         for (WorldInventory inv : inventories) {
@@ -68,8 +75,19 @@ public class WorldInventory {
             }
         }
 
+        // Only mark as loaded after parsing: WorldConfig.get() above creates missing
+        // configurations, whose constructor path calls save(). With the flag raised
+        // mid-parse those saves would rewrite inventories.yml from a half-read state,
+        // silently truncating every group not yet parsed.
+        inventoriesLoaded = true;
+
+        // The groups bundled in the plugin jar are canonical and must survive even
+        // when the server's inventories.yml lost them; save() also re-asserts them
+        // before every write.
+        boolean changed = applyCanonicalGroups();
+
         // Re-save after loading in case merging of previous default inventories caused changes
-        if (hadExistingInventoriesThatRequiredSaving) {
+        if (hadExistingInventoriesThatRequiredSaving || changed) {
             save();
         }
     }
@@ -80,20 +98,164 @@ public class WorldInventory {
             return;
         }
 
+        // A save triggered from within the canonical reconcile below; the outer
+        // call writes the final state once
+        if (enforcingCanonical) {
+            return;
+        }
+
+        // Re-assert the canonical groups before every write: save() is the only
+        // path that rewrites inventories.yml, so enforcing here guarantees no
+        // rewrite, by whatever plugin or command, can persist a broken main bundle
+        applyCanonicalGroups();
+
         FileConfiguration config = new FileConfiguration(MyWorlds.plugin, "inventories.yml");
         Set<String> savedNames = new HashSet<String>();
         for (WorldInventory inventory : inventories) {
-            if (inventory.isRequiredSaving()) {
+            // Count only worlds whose registered configuration still references this
+            // group. Stale groups linger in the static set after /world config load
+            // re-creates all WorldConfigs and would otherwise be written as duplicates.
+            List<String> effectiveWorlds = new ArrayList<String>();
+            for (String world : inventory.worlds) {
+                WorldConfig wc = WorldConfig.getIfExists(world);
+                if (wc != null && wc.inventory == inventory) {
+                    effectiveWorlds.add(world);
+                }
+            }
+            if (effectiveWorlds.size() > 1) {
                 String name = inventory.name;
                 for (int i = 0; i < Integer.MAX_VALUE && !savedNames.add(name.toLowerCase()); i++) {
                     name = inventory.name + i;
                 }
                 ConfigurationNode node = config.getNode(name);
                 node.set("folder", inventory.worldname);
-                node.set("worlds", new ArrayList<String>(inventory.worlds));
+                node.set("worlds", effectiveWorlds);
             }
         }
         config.save();
+    }
+
+    /**
+     * Applies the inventory groups bundled inside the plugin jar (the shipped
+     * inventories.yml resource). These groups are canonical: their listed worlds are
+     * always merged into one group, worlds that joined that group but are not listed
+     * are moved back into their own group, and the shared storage world is pinned to
+     * the configured folder. Groups in the server's inventories.yml that do not
+     * involve canonical worlds are never touched. Worlds that are not registered or
+     * whose folder no longer exists are ignored, so this is safe on servers with a
+     * different level-name. All mutations here avoid save(); callers persist.
+     *
+     * @return True if any group was changed
+     */
+    private static boolean applyCanonicalGroups() {
+        if (enforcingCanonical) {
+            return false;
+        }
+        enforcingCanonical = true;
+        try {
+            boolean changed = false;
+            for (CanonicalGroup canonical : getCanonicalGroups()) {
+                if (!WorldConfigStore.exists(canonical.folder) || !WorldManager.worldExists(canonical.folder)) {
+                    continue;
+                }
+
+                // Members must be known to the server and exist on disk. Loadedness is
+                // deliberately not required: MyWorlds tracks groups for unloaded worlds
+                // too, and requiring it would eject a temporarily unloaded dimension.
+                List<String> members = new ArrayList<String>();
+                Set<String> membersLower = new HashSet<String>();
+                for (String worldName : canonical.worlds) {
+                    if (WorldConfigStore.exists(worldName) && WorldManager.worldExists(worldName)) {
+                        members.add(worldName);
+                        membersLower.add(worldName.toLowerCase());
+                    }
+                }
+                if (members.size() < 2 || !membersLower.contains(canonical.folder.toLowerCase())) {
+                    continue;
+                }
+
+                WorldConfig folderConfig = WorldConfig.get(canonical.folder);
+                WorldInventory group = folderConfig.inventory;
+                boolean groupChanged = false;
+
+                // Merge in missing members
+                for (String member : members) {
+                    if (!group.contains(member)) {
+                        group.addWithoutSaving(member);
+                        groupChanged = true;
+                    }
+                }
+
+                // Move foreign members back into their own group
+                for (String extra : new ArrayList<String>(group.worlds)) {
+                    if (!membersLower.contains(extra)) {
+                        group.removeWithoutSaving(extra, true);
+                        groupChanged = true;
+                    }
+                }
+
+                // Pin the shared storage world to the canonical folder
+                if (!folderConfig.worldname.equalsIgnoreCase(group.worldname)) {
+                    group.worldname = folderConfig.worldname;
+                    groupChanged = true;
+                }
+
+                // Give auto-named groups the canonical name for a recognizable file
+                if (groupChanged && group.name.matches("inv\\d+")) {
+                    group.name = canonical.name;
+                }
+
+                if (groupChanged) {
+                    changed = true;
+                    MyWorlds.plugin.log(Level.WARNING, "Re-asserted canonical inventory group '" +
+                            group.name + "' (folder: " + group.worldname + "): " + group.worlds);
+                }
+            }
+            return changed;
+        } finally {
+            enforcingCanonical = false;
+        }
+    }
+
+    private static List<CanonicalGroup> getCanonicalGroups() {
+        if (canonicalGroups != null) {
+            return canonicalGroups;
+        }
+
+        List<CanonicalGroup> result = new ArrayList<CanonicalGroup>();
+        try (InputStream stream = MyWorlds.plugin.getResource("inventories.yml")) {
+            if (stream != null) {
+                YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
+                        new InputStreamReader(stream, StandardCharsets.UTF_8));
+                for (String groupName : defaults.getKeys(false)) {
+                    ConfigurationSection groupConfig = defaults.getConfigurationSection(groupName);
+                    if (groupConfig == null) {
+                        continue;
+                    }
+                    String folder = groupConfig.getString("folder");
+                    List<String> worlds = groupConfig.getStringList("worlds");
+                    if (folder != null && !worlds.isEmpty()) {
+                        result.add(new CanonicalGroup(groupName, folder, worlds));
+                    }
+                }
+            }
+        } catch (IOException ex) {
+            MyWorlds.plugin.getLogger().log(Level.WARNING, "Failed to read bundled inventories.yml", ex);
+        }
+        canonicalGroups = result;
+        return result;
+    }
+
+    private static final class CanonicalGroup {
+        public final String name;
+        public final String folder;
+        public final List<String> worlds;
+
+        public CanonicalGroup(String name, String folder, List<String> worlds) {
+            this.name = name;
+            this.folder = folder;
+            this.worlds = worlds;
+        }
     }
 
     public static void detach(Collection<String> worldnames) {
