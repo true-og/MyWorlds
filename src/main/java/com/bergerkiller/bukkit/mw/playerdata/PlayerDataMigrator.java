@@ -1,14 +1,13 @@
 package com.bergerkiller.bukkit.mw.playerdata;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -65,16 +64,22 @@ public class PlayerDataMigrator implements Listener {
         if (newStorageWorld == curStorageWorld) {
             return;
         }
+        // The main group's profiles stay on the main world, and no other group may write its profiles there
+        if (curStorageWorld.isMainGroupWorld() || newStorageWorld.isMainGroupWorld()) {
+            plugin.log(Level.SEVERE, "Refusing to move inventory group player data between " + curStorageWorld.worldname + " and " + newStorageWorld.worldname + ": a main world is involved");
+            return;
+        }
 
         // Update inventories.yml
         newStorageWorld.inventory.setSharedWorldName(newStorageWorld.worldname);
 
         // Migrate the player data from the old storage location to the new
-        final File curStorageWorldPlayerData = curStorageWorld.getPlayerFolder();
-        final File newStorageWorldPlayerData = newStorageWorld.getPlayerFolder();
+        final String curStorageWorldName = curStorageWorld.worldname;
+        final String newStorageWorldName = newStorageWorld.worldname;
         scheduleForWorlds("stored player inventory data from one world to another", Arrays.asList(curStorageWorld, newStorageWorld), playerUUID -> {
-            final CommonTagCompound curData = PlayerDataFile.readIfExists(plugin, curStorageWorldPlayerData, playerUUID);
-            final CommonTagCompound newData = PlayerDataFile.readIfExists(plugin, newStorageWorldPlayerData, playerUUID);
+            final PlayerDataStore store = PlayerDataStores.current();
+            final CommonTagCompound curData = store.read(curStorageWorldName, playerUUID);
+            final CommonTagCompound newData = store.read(newStorageWorldName, playerUUID);
             if (curData == null && newData == null) {
                 return; // Never happens...but just in case!
             }
@@ -113,10 +118,12 @@ public class PlayerDataMigrator implements Listener {
             }
 
             // Save stuff
-            PlayerDataFile.write(newDataUpdated, newStorageWorldPlayerData, playerUUID);
+            Map<String, CommonTagCompound> batch = new HashMap<>();
+            batch.put(newStorageWorldName, newDataUpdated);
             if (curDataUpdated != null) {
-                PlayerDataFile.write(curDataUpdated, curStorageWorldPlayerData, playerUUID);
+                batch.put(curStorageWorldName, curDataUpdated);
             }
+            store.writeAll(playerUUID, batch);
         });
     }
 
@@ -144,16 +151,22 @@ public class PlayerDataMigrator implements Listener {
         if (curMainWorld == newMainWorld) {
             return;
         }
+        // Rewrites every main profile's index and moves it to another storage, never on a server with a fixed main world
+        if (curMainWorld.isMainGroupWorld()) {
+            plugin.log(Level.SEVERE, "Refusing to migrate the main world away from " + curMainWorld.worldname + ": main world player data is never moved");
+            return;
+        }
 
         // Rewrite MyWorlds' config.yml to change the main world to the new one
         plugin.changeMainWorld(newMainWorld.worldname);
 
         // Migrate all player data to move the main world information to the new world
-        final File curMainWorldPlayerData = curMainWorld.getPlayerFolder();
-        final File newMainWorldPlayerData = newMainWorld.getPlayerFolder();
+        final String curMainWorldName = curMainWorld.worldname;
+        final String newMainWorldName = newMainWorld.worldname;
         scheduleForWorlds("to a new Main World configuration", Arrays.asList(curMainWorld, newMainWorld), playerUUID -> {
-            CommonTagCompound curData = PlayerDataFile.readIfExists(plugin, curMainWorldPlayerData, playerUUID);
-            CommonTagCompound newData = PlayerDataFile.readIfExists(plugin, newMainWorldPlayerData, playerUUID);
+            final PlayerDataStore store = PlayerDataStores.current();
+            CommonTagCompound curData = store.read(curMainWorldName, playerUUID);
+            CommonTagCompound newData = store.read(newMainWorldName, playerUUID);
 
             // If current data is not available, there is nothing to migrate...
             if (curData == null) {
@@ -162,7 +175,7 @@ public class PlayerDataMigrator implements Listener {
 
             // If current data is self-contained, that means the data was saved before MyWorlds multi-world-inventories
             // was enabled as a feature. Simply copy the file to the new location and be done with it.
-            if (!MyWorlds.useWorldInventories || PlayerDataFile.isSelfContained(curData)) {
+            if (!MyWorlds.useWorldInventories || PlayerDataEntry.isSelfContained(curData)) {
                 // Preserve legacy data tracked in this world before
                 if (newData != null) {
                     // Note: if absent in data, puts null, which removes the tag
@@ -180,7 +193,7 @@ public class PlayerDataMigrator implements Listener {
                 }
 
                 // Copy current data to the new data file. Overwrite existing.
-                PlayerDataFile.write(curData, newMainWorldPlayerData, playerUUID);
+                store.write(newMainWorldName, playerUUID, curData);
                 // We can keep the original main world file. No big deal.
                 return;
             }
@@ -230,57 +243,22 @@ public class PlayerDataMigrator implements Listener {
             }
 
             // Write out the data to the new files
-            PlayerDataFile.write(curData, curMainWorldPlayerData, playerUUID);
-            PlayerDataFile.write(newData, newMainWorldPlayerData, playerUUID);
+            Map<String, CommonTagCompound> batch = new HashMap<>();
+            batch.put(curMainWorldName, curData);
+            batch.put(newMainWorldName, newData);
+            store.writeAll(playerUUID, batch);
         });
     }
 
     public void scheduleForWorlds(String name, Collection<WorldConfig> worlds, Migrator task) {
-        Map<UUID, Long> uuids = new HashMap<>(100);
+        // Union of every profile stored on these worlds, in backend order
+        LinkedHashSet<UUID> uuids = new LinkedHashSet<>();
+        PlayerDataStore store = PlayerDataStores.current();
         for (WorldConfig config : worlds) {
-            File playerDataFolder = config.getPlayerFolder();
-            if (playerDataFolder.exists()) {
-                for (File file : playerDataFolder.listFiles()) {
-                    String fileName = file.getName().toLowerCase(Locale.ENGLISH);
-                    if (fileName.endsWith(".dat")) {
-                        // Decode UUID
-                        UUID uuid;
-                        try {
-                            uuid = UUID.fromString(fileName.substring(0, fileName.length() - 4));
-                        } catch (IllegalArgumentException ex) {
-                            /* ignore */
-                            continue;
-                        }
-
-                        // Track latest modification timestamp of a player profile per uuid
-                        final long lastModified;
-                        {
-                            long tmp = 0L;
-                            try {
-                                tmp = file.lastModified();
-                            } catch (Throwable t) { /* meh */ }
-                            lastModified = tmp;
-                        }
-
-                        // Map latest modification date to uuid
-                        uuids.compute(uuid, (u, curr) -> {
-                            if (curr != null && curr > lastModified) {
-                                return curr;
-                            } else {
-                                return lastModified;
-                            }
-                        });
-                    }
-                }
-            }
+            uuids.addAll(store.list(config.worldname));
         }
 
-        // Sort so the most recently changed UUID is at the back
-        // We process asynchronously in reverse
-        ArrayList<UUID> uuidsList = new ArrayList<>(uuids.keySet());
-        uuidsList.sort((a, b) -> Long.compare(uuids.get(a), uuids.get(b)));
-
-        schedule(name, uuidsList, task);
+        schedule(name, new ArrayList<>(uuids), task);
     }
 
     public void schedule(String name, Collection<UUID> uuids, Migrator task) {

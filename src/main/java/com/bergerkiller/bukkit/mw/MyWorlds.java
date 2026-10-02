@@ -24,7 +24,9 @@ import com.bergerkiller.bukkit.mw.advancement.AdvancementManager;
 import com.bergerkiller.bukkit.mw.commands.registry.MyWorldsCommands;
 import com.bergerkiller.bukkit.mw.papi.PlaceholderAPIHandlerWithExpansions;
 import com.bergerkiller.bukkit.mw.patch.WorldInventoriesDupingPatch;
+import com.bergerkiller.bukkit.mw.playerdata.LegacyPlayerDataImporter;
 import com.bergerkiller.bukkit.mw.playerdata.PlayerDataMigrator;
+import com.bergerkiller.bukkit.mw.playerdata.PlayerDataStores;
 import com.bergerkiller.bukkit.mw.portal.PlayerRespawnHandler;
 import com.bergerkiller.bukkit.mw.portal.PortalEnterEventDebouncer;
 import com.bergerkiller.bukkit.mw.portal.PortalFilter;
@@ -348,6 +350,18 @@ public class MyWorlds extends PluginBase {
 
         // Fire portal enter events (debounced)
         portalEnterEventDebouncer.enable();
+
+        // Player data backend. On a RocksDB server, pull leftover per-world .dat files into it first.
+        try {
+            PlayerDataStores.select(this);
+        } catch (IllegalStateException ex) {
+            log(Level.SEVERE, ex.getMessage());
+            Bukkit.getPluginManager().disablePlugin(this);
+            return;
+        }
+        if (PlayerDataStores.isRocksDB()) {
+            LegacyPlayerDataImporter.run(this, PlayerDataStores.current());
+        }
 
         // Player data controller
         dataController = new MWPlayerDataController(this);

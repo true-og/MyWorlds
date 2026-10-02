@@ -35,7 +35,7 @@ import com.bergerkiller.bukkit.common.utils.ParseUtil;
 import com.bergerkiller.bukkit.common.utils.StreamUtil;
 import com.bergerkiller.bukkit.common.utils.WorldUtil;
 import com.bergerkiller.bukkit.mw.external.MultiverseHandler;
-import com.bergerkiller.bukkit.mw.playerdata.PlayerDataFile;
+import com.bergerkiller.bukkit.mw.playerdata.PlayerDataStores;
 import com.bergerkiller.bukkit.mw.portal.PortalDestination;
 import com.bergerkiller.bukkit.mw.portal.PortalMode;
 import com.bergerkiller.bukkit.mw.utils.GeneratorStructuresParser;
@@ -1010,16 +1010,6 @@ public class WorldConfig extends WorldConfigStore {
     }
 
     /**
-     * Gets the File where player data for this world is saved
-     * 
-     * @param player to get this world's save file for
-     * @return Player Data File
-     */
-    public File getPlayerData(OfflinePlayer player) {
-        return PlayerDataFile.getPlayerDataFile(getPlayerFolder(), player.getUniqueId());
-    }
-
-    /**
      * Gets the File Location where the regions of this world are contained
      * 
      * @return Region Folder
@@ -1294,10 +1284,28 @@ public class WorldConfig extends WorldConfigStore {
         if (WorldManager.worldExists(newWorldConfig.worldname)) {
             return false;
         }
+        if (!isSafeWorldFolderName(this.worldname) || !isSafeWorldFolderName(newWorldConfig.worldname)) {
+            return false;
+        }
 
         // Copy the world folder over
         if (!StreamUtil.tryCopyFile(this.getWorldFolder(), newWorldConfig.getWorldFolder())) {
             return false;
+        }
+
+        // Stored player data follows the world. On RocksDB servers the folder copy carried none of it.
+        // A partial copy must not pass as success, or the clone is used with missing profiles.
+        if (PlayerDataStores.current().copy(this.worldname, newWorldConfig.worldname) < 0) {
+            MyWorlds.plugin.log(Level.SEVERE, "Failed to copy stored player data of world " + this.worldname + " to " + newWorldConfig.worldname + ", removing the incomplete clone");
+            PlayerDataStores.current().drop(newWorldConfig.worldname);
+            StreamUtil.deleteFile(newWorldConfig.getWorldFolder());
+            return false;
+        }
+
+        // A copied live database directory is junk
+        File copiedDatabase = new File(newWorldConfig.getWorldFolder(), "playerdatadb");
+        if (copiedDatabase.exists()) {
+            StreamUtil.deleteFile(copiedDatabase);
         }
 
         // Take over the world configuration
@@ -1323,13 +1331,83 @@ public class WorldConfig extends WorldConfigStore {
      * 
      * @return True if successful, False if not
      */
+    // Why this world must not be deleted, or null. Must run before the config is removed, which detaches the group.
+    // The loaded-folder check is skipped while the caller still has to unload this very world.
+    public String refuseDeletionReason(boolean stillLoaded) {
+        if (!isSafeWorldFolderName(this.worldname)) {
+            return "Refusing to delete '" + this.worldname + "': the name is not a plain folder name";
+        }
+        if (this.isMainGroupWorld()) {
+            return "Refusing to delete '" + this.worldname + "': main worlds and their player data are never deleted";
+        }
+        if (!stillLoaded && isLoadedWorldFolder(this.getWorldFolder())) {
+            return "Refusing to delete '" + this.worldname + "': its folder belongs to a world that is loaded";
+        }
+        // The storage world of a shared inventory group holds every member's profiles
+        if (this.inventory != null && this.inventory.getWorlds().size() > 1) {
+            String storageWorld = null;
+            try {
+                storageWorld = this.inventory.getSharedWorldName();
+            } catch (RuntimeException ignored) {
+            }
+            if (storageWorld == null || storageWorld.equalsIgnoreCase(this.worldname)) {
+                return "Refusing to delete '" + this.worldname + "': it stores the inventories of its group, split or migrate the group first";
+            }
+        }
+        return null;
+    }
+
     public boolean deleteWorld() {
         if (this.isLoaded()) {
             return false;
         }
         File worldFolder = this.getWorldFolder();
+        String reason = refuseDeletionReason(false);
+        if (reason != null) {
+            MyWorlds.plugin.log(Level.SEVERE, reason);
+            return false;
+        }
+        // Drop stored player data first; if it cannot be removed, stop so a reused world name never inherits it
+        if (!PlayerDataStores.current().drop(this.worldname)) {
+            MyWorlds.plugin.log(Level.SEVERE, "Refusing to delete '" + this.worldname + "': its stored player data could not be dropped");
+            return false;
+        }
         WorldConfig.remove(this.worldname);
         return StreamUtil.deleteFile(worldFolder).isEmpty();
+    }
+
+    // The server's level, its nether and end, the configured main world, and every member of the main inventory group
+    public boolean isMainGroupWorld() {
+        String level = Bukkit.getWorlds().get(0).getName();
+        if (this.worldname.equalsIgnoreCase(level) || this.worldname.equalsIgnoreCase(level + "_nether") || this.worldname.equalsIgnoreCase(level + "_the_end")) {
+            return true;
+        }
+        World main = MyWorlds.getMainWorld();
+        if (main != null && this.worldname.equalsIgnoreCase(main.getName())) {
+            return true;
+        }
+        WorldConfig inventoryMain = WorldConfig.getInventoryMain();
+        return inventoryMain != null && inventoryMain.inventory != null && inventoryMain.inventory.contains(this.worldname);
+    }
+
+    // A world folder name is a single path element, never a traversal or the container itself
+    private static boolean isSafeWorldFolderName(String name) {
+        return name != null && !name.isEmpty() && !name.equals(".") && !name.contains("..") && !name.contains("/") && !name.contains("\\");
+    }
+
+    // True when the folder is, through any alias or symlink, the folder of a world that is loaded right now
+    private static boolean isLoadedWorldFolder(File folder) {
+        try {
+            File canonical = folder.getCanonicalFile();
+            for (World loaded : Bukkit.getWorlds()) {
+                if (loaded.getWorldFolder().getCanonicalFile().equals(canonical)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (IOException ex) {
+            return true;
+        }
     }
 
     @Override

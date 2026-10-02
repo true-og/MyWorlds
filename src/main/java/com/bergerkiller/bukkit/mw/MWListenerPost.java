@@ -3,6 +3,7 @@ package com.bergerkiller.bukkit.mw;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -165,6 +166,32 @@ public class MWListenerPost implements Listener {
                 Localization.WORLD_NOBUILD.message(event.getPlayer());
                 event.setBuild(false);
             }
+        }
+    }
+
+    // Survival is stored in this world's RocksDB profile; creative is kept by GameModeInventories. At LOW we
+    // persist the survival profile before leaving it for creative, so a HIGH handler that loads creative cannot
+    // discard it. Runs before any load so the outgoing inventory is always captured first.
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onLeaveSurvival(PlayerGameModeChangeEvent event) {
+        if (!MyWorlds.useWorldInventories) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (player.getGameMode() == GameMode.SURVIVAL && event.getNewGameMode() == GameMode.CREATIVE) {
+            MWPlayerDataController.savePlayer(player, player.getWorld());
+        }
+    }
+
+    // At HIGH, after every save, restore the stored survival inventory over the creative one the player was holding.
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEnterSurvival(PlayerGameModeChangeEvent event) {
+        if (!MyWorlds.useWorldInventories) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (player.getGameMode() == GameMode.CREATIVE && event.getNewGameMode() == GameMode.SURVIVAL) {
+            MyWorlds.plugin.getPlayerDataController().applyStoredInventory(player);
         }
     }
 

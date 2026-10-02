@@ -18,6 +18,11 @@ public class AsyncHandler {
             CommonUtil.sendMessage(sender, ChatColor.RED + "Can not delete a loaded world!");
             return;
         }
+        String reason = worldConfig.refuseDeletionReason(false);
+        if (reason != null) {
+            CommonUtil.sendMessage(sender, ChatColor.RED + reason);
+            return;
+        }
         WorldConfig.remove(worldConfig.worldname);
         new AsyncTask("World deletion thread") {
             public void run() {

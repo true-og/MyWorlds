@@ -192,6 +192,10 @@ public class WorldInventory extends Command {
                 return;
             }
 
+            if (WorldConfig.get(MyWorlds.getMainWorld()).isMainGroupWorld()) {
+                message(ChatColor.RED + "The main world is fixed on this server, its player data is never moved");
+                return;
+            }
             message(ChatColor.GREEN + "Migrating to a new inventory main world...");
             plugin.getPlayerDataMigrator().notifyWhenDone(sender);
             plugin.getPlayerDataMigrator().changeMainWorld(wc);
@@ -209,6 +213,10 @@ public class WorldInventory extends Command {
                 return;
             }
 
+            if (WorldConfig.get(wc.inventory.getSharedWorldName()).isMainGroupWorld() || wc.isMainGroupWorld()) {
+                message(ChatColor.RED + "Main world player data is never moved or overwritten");
+                return;
+            }
             message(ChatColor.GREEN + "Migrating stored player data from world " + wc.inventory.getSharedWorldName() +
                     " to world " + wc.worldname);
             plugin.getPlayerDataMigrator().notifyWhenDone(sender);

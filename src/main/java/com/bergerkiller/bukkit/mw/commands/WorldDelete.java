@@ -26,6 +26,12 @@ public class WorldDelete extends Command {
                 worldname = null;
             }
             if (this.handleWorld()) {
+                // Checked while the group is still attached, unloading and removal below would hide it
+                String reason = WorldConfig.get(worldname).refuseDeletionReason(Bukkit.getWorld(worldname) != null);
+                if (reason != null) {
+                    message(ChatColor.RED + reason);
+                    return;
+                }
                 World loadedWorld = Bukkit.getWorld(worldname);
                 if (loadedWorld != null) {
                     // Try to unload the world first
