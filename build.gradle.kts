@@ -16,7 +16,8 @@ val buildNumber =
 val pluginName = "MyWorlds"
 val mcApiVersion = "1.19.4-R0.1-SNAPSHOT"
 val bkCommonLibVersion = "1.19.4-v2"
-val utilitiesOgVersion = "1.7.8"
+val utilitiesOgVersion = "1.7.9"
+val rocksDbVersion = "10.10.1.1"
 val pluginPreloaderVersion = "1.8"
 
 java {
@@ -53,6 +54,7 @@ dependencies {
     compileOnly("org.spigotmc:spigot-api:$mcApiVersion")
     compileOnly(files("libs/BKCommonLib/BKCommonLib-$bkCommonLibVersion.jar"))
     compileOnly(files("libs/Utilities-OG/Utilities-OG-$utilitiesOgVersion.jar"))
+    compileOnly("org.rocksdb:rocksdbjni:$rocksDbVersion")
 
     compileOnly("com.onarandombox.multiversecore:Multiverse-Core:4.2.0") {
         exclude(group = "org.bukkit", module = "craftbukkit")

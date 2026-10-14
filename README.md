@@ -1,10 +1,10 @@
 # MyWorlds (TrueOG fork)
 
-A fork of [MyWorlds](https://www.spigotmc.org/resources/myworlds.39594/) by bergerkiller / Berger Healer, maintained by [TrueOG Network](https://trueog.net). World management for Bukkit; this fork keeps per-world inventories in the TrueOG Purpur RocksDB player-data store instead of flat `.dat` files.
+A fork of [MyWorlds](https://www.spigotmc.org/resources/myworlds.39594/) by bergerkiller / Berger Healer, maintained by [TrueOG Network](https://trueog.net). World management for Bukkit; this fork keeps per-world inventories in the TrueOG Purpur RocksDB player-data database instead of flat `.dat` files.
 
 ## Changes from upstream
 
-Per-world inventories go through the [Utilities-OG](https://github.com/true-og/Utilities-OG) player-data API into Purpur's RocksDB (flat `.dat` files remain the fallback on non-fork servers). Data-safety rules:
+Per-world inventories live in Purpur's RocksDB (`<level>/playerdatadb`), reached through the [Utilities-OG](https://github.com/true-og/Utilities-OG) shared-database API: the level's group is the vanilla profile the server owns, every other inventory group is a `world:<storage world>` column family that MyWorlds owns, creates, copies and drops itself. Each save is one atomic batch across the profiles it touches. Flat `.dat` files remain the fallback on non-fork servers. Data-safety rules:
 
 - The stored profile holds the **survival** inventory per world/group. When [GameModeInventories-OG](https://github.com/true-og/GameModeInventories-OG) is present it owns the **creative** inventories, so no inventory lives in two stores: MyWorlds saves survival when a player leaves it for creative and restores it when they return, and never overwrites the stored survival inventory with a non-survival player's live items.
 - A failed read kicks the player and refuses to save, so the stored profile is never overwritten with half-applied state; a failed save does the same, so a world change cannot overwrite the unsaved profile.
