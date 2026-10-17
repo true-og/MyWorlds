@@ -16,8 +16,6 @@ val buildNumber =
 val pluginName = "MyWorlds"
 val mcApiVersion = "1.19.4-R0.1-SNAPSHOT"
 val bkCommonLibVersion = "1.19.4-v2"
-val utilitiesOgVersion = "1.7.9"
-val rocksDbVersion = "10.10.1.1"
 val pluginPreloaderVersion = "1.8"
 
 java {
@@ -53,8 +51,7 @@ repositories {
 dependencies {
     compileOnly("org.spigotmc:spigot-api:$mcApiVersion")
     compileOnly(files("libs/BKCommonLib/BKCommonLib-$bkCommonLibVersion.jar"))
-    compileOnly(files("libs/Utilities-OG/Utilities-OG-$utilitiesOgVersion.jar"))
-    compileOnly("org.rocksdb:rocksdbjni:$rocksDbVersion")
+    compileOnlyApi(project(":libs:Utilities-OG")) // Import TrueOG Network Utilities-OG Java API (from source).
 
     compileOnly("com.onarandombox.multiversecore:Multiverse-Core:4.2.0") {
         exclude(group = "org.bukkit", module = "craftbukkit")
@@ -89,8 +86,12 @@ tasks.withType<AbstractArchiveTask>().configureEach {
     isReproducibleFileOrder = true
 }
 
+// The plain jar feeds plugins that include this build as :libs:MyWorlds; the shadow jar is the plugin.
+val intermediateJars = layout.buildDirectory.dir("intermediates")
+
 tasks.jar {
-    enabled = false
+    archiveClassifier.set("part")
+    destinationDirectory.set(intermediateJars)
 }
 
 tasks.register<Jar>("sourcesJar") {

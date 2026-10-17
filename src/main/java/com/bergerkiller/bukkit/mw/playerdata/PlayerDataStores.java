@@ -1,6 +1,9 @@
 package com.bergerkiller.bukkit.mw.playerdata;
 
+import java.util.Collection;
 import java.util.logging.Level;
+
+import org.bukkit.entity.Player;
 
 import com.bergerkiller.bukkit.mw.MyWorlds;
 
@@ -37,5 +40,27 @@ public final class PlayerDataStores {
 
     public static boolean isRocksDB() {
         return current instanceof RocksPlayerDataStore;
+    }
+
+    // Puts the stored nested profiles of these players into their live persistent data containers, so the server's
+    // own saves keep them once MyWorlds no longer handles saving (a reload or a plugin disable). The containers are
+    // what a server without MyWorlds round-trips; while MyWorlds is attached the groups are stripped again on load.
+    public static void restoreContainers(Collection<? extends Player> players) {
+        if (!(current instanceof RocksPlayerDataStore)) {
+            return;
+        }
+        RocksPlayerDataStore store = (RocksPlayerDataStore) current;
+        for (Player player : players) {
+            try {
+                Object container = store.storedContainer(player.getUniqueId());
+                if (container == null) {
+                    continue;
+                }
+                Object persistentData = player.getPersistentDataContainer();
+                persistentData.getClass().getMethod("putAll", container.getClass()).invoke(persistentData, container);
+            } catch (Throwable t) {
+                MyWorlds.plugin.getLogger().log(Level.SEVERE, "Could not hand the nested profiles of " + player.getName() + " to the server; its next save of this player drops them", t);
+            }
+        }
     }
 }

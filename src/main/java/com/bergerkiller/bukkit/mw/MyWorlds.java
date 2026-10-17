@@ -405,6 +405,8 @@ public class MyWorlds extends PluginBase {
         // Detach data controller. Only do so when reloading, do not do it when
         // shutting down so we handle player saving correctly.
         if (!CommonUtil.isShuttingDown() && dataController != null) {
+            // From here on the server saves the live players itself, so they must carry their nested profiles
+            PlayerDataStores.restoreContainers(Bukkit.getOnlinePlayers());
             dataController.detach();
             dataController = null;
         }

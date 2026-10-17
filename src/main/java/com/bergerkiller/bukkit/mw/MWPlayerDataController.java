@@ -160,11 +160,17 @@ public class MWPlayerDataController extends PlayerDataController {
         }
 
         PlayerDataEntry posFile = new PlayerDataEntry(player, worldConfigStoringInventory);
-        if (!posFile.exists()) {
+        CommonTagCompound data;
+        try {
+            data = posFile.readIfExists();
+        } catch (IllegalStateException ex) {
+            // An unreadable profile vouches for nothing; the load path handles the player
+            return PlayerRespawnPoint.NONE;
+        }
+        if (data == null) {
             return PlayerRespawnPoint.NONE;
         }
 
-        CommonTagCompound data = posFile.read(player);
         PlayerRespawnPoint respawn = PlayerRespawnPoint.fromNBT(data);
         return isValidRespawnPoint(world, respawn) ? respawn : PlayerRespawnPoint.NONE;
     }
@@ -198,7 +204,12 @@ public class MWPlayerDataController extends PlayerDataController {
     public static World findPlayerWorld(OfflinePlayer player) {
         // Try to read this information
         PlayerDataEntry mainWorldFile = PlayerDataEntry.main(player);
-        CommonTagCompound mainWorldData = mainWorldFile.readIfExists();
+        CommonTagCompound mainWorldData;
+        try {
+            mainWorldData = mainWorldFile.readIfExists();
+        } catch (IllegalStateException ex) {
+            mainWorldData = null; // Unreadable, treated like unknown
+        }
         if (mainWorldData != null) {
             World world = Bukkit.getWorld(mainWorldData.getUUID("World"));
             if (world != null) {
@@ -277,8 +288,13 @@ public class MWPlayerDataController extends PlayerDataController {
     }
 
     private static boolean verifyLastLocationValid(Location loc, Player player) {
-        // A missing profile at the destination world means it was wiped and this last position is stale
-        if (!PlayerDataStores.current().has(WorldConfig.get(loc.getWorld()).worldname, player.getUniqueId())) {
+        // A missing profile at the destination world means it was wiped and this last position is stale;
+        // one the storage could not read can not vouch for it either
+        try {
+            if (!PlayerDataStores.current().has(WorldConfig.get(loc.getWorld()).worldname, player.getUniqueId())) {
+                return false;
+            }
+        } catch (IllegalStateException ex) {
             return false;
         }
 
@@ -314,7 +330,12 @@ public class MWPlayerDataController extends PlayerDataController {
             boolean changed = false;
             if (positions == null) {
                 PlayerDataEntry mainWorldFile = PlayerDataEntry.main(player);
-                CommonTagCompound data = mainWorldFile.readIfExists();
+                CommonTagCompound data;
+                try {
+                    data = mainWorldFile.readIfExists();
+                } catch (IllegalStateException ex) {
+                    data = null; // Unreadable: no known positions, the load path kicks the player
+                }
                 positions = parseLastPlayerPositions(mainWorldFile.world, data);
                 changed = true;
             }
@@ -324,7 +345,13 @@ public class MWPlayerDataController extends PlayerDataController {
                 if (!positions.containsWorld(config)) {
                     // Try to see if data exists in a player data file on that particular world
                     PlayerDataEntry file = new PlayerDataEntry(player, config);
-                    CommonTagCompound posData = parseLegacyLastPosition(config, file.readIfExists());
+                    CommonTagCompound legacyData;
+                    try {
+                        legacyData = file.readIfExists();
+                    } catch (IllegalStateException ex) {
+                        legacyData = null;
+                    }
+                    CommonTagCompound posData = parseLegacyLastPosition(config, legacyData);
                     if (posData == null && !config.isLoaded()) {
                         continue; // Skip non-loaded worlds
                     }

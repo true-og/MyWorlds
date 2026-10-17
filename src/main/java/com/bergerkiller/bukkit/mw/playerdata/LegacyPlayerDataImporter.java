@@ -80,7 +80,7 @@ public final class LegacyPlayerDataImporter {
             return;
         }
 
-        // Make the imports durable before the source is renamed away, else a crash loses both copies
+        // Flush whatever the backend buffers before the source is renamed away; the server's own store persists on write
         if (!store.flush()) {
             plugin.log(Level.WARNING, summary + ", but could not flush player data to disk; keeping " + folder + " for a retry on next start");
             return;
