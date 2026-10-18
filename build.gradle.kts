@@ -50,7 +50,7 @@ repositories {
 
 dependencies {
     compileOnly("org.spigotmc:spigot-api:$mcApiVersion")
-    compileOnly(files("libs/BKCommonLib/BKCommonLib-$bkCommonLibVersion.jar"))
+    compileOnly("com.bergerkiller.bukkit:BKCommonLib:$bkCommonLibVersion") // From the BKCommonLib Maven repository, never a vendored jar.
     compileOnlyApi(project(":libs:Utilities-OG")) // Import TrueOG Network Utilities-OG Java API (from source).
 
     compileOnly("com.onarandombox.multiversecore:Multiverse-Core:4.2.0") {
@@ -116,10 +116,6 @@ tasks.shadowJar {
 
     from("LICENSE") {
         rename { "LICENSE" }
-    }
-    from("libs/BKCommonLib/LICENSE") {
-        into("META-INF/licenses")
-        rename { "LICENSE-BKCommonLib" }
     }
 
     exclude("META-INF/*.MF")
